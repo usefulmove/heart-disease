@@ -41,9 +41,19 @@ patients <- readr::read_csv(
                 "blood_vessels", # number of major vessels (0-3) colored by fluoroscope
                 "thal", # normal (3), 6 = fixed defect (6), 7 = reversible defect (7)
                 "diag" # diagnosis of heart disease (angiographic disease status)
-                )
+                ),
+  na = c("?")
 )
 
+
+# remove observations with NAs (only 6 in data set)
+patients <- patients %>%
+  drop_na()
+
 patients
+```
+
+```{r correlation}
+cor(patients)
 ```
 
