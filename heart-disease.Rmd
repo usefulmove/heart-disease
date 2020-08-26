@@ -94,12 +94,14 @@ processed_test_data <- recipe %>%
 
 ### Supervised learning
 
+#### Gradient Boost
+
 ```{r train, include = FALSE}
 model <- boost_tree(
            trees = 200,
            mode = "classification",
            learn_rate = 0.3,
-           tree_depth = 6
+           tree_depth = 4
          ) %>%
   set_engine("xgboost") %>%
   fit(diag ~ ., data = processed_train_data)
@@ -128,4 +130,38 @@ cm <- model %>%
   conf_mat(truth = diag, estimate = .pred_class)
 
 autoplot(cm, type = "heatmap")
+```
+
+#### k-Nearest Neighbors
+
+```{r train_knn, include = FALSE}
+model_knn <- nearest_neighbor(
+               neighbors = 5,
+               mode = "classification",
+               dist_power = 1,
+               weight_func = "optimal"
+             ) %>%
+  set_engine("kknn") %>%
+  fit(diag ~ ., data = processed_train_data)
+```
+
+```{r predict_knn, include = FALSE}
+knn_accuracy <- model_knn %>%
+  predict(processed_test_data) %>%
+  bind_cols(processed_test_data) %>%
+  metrics(truth = diag, estimate = .pred_class) %$%
+  .estimate[1]
+
+knn_accuracy
+```
+
+The model accuracy is `r format(knn_accuracy, digits = 5)`.
+
+```{r knn_confusion, out.width = "70%"}
+cm_knn <- model_knn %>%
+  predict(processed_test_data) %>%
+  bind_cols(processed_test_data) %>%
+  conf_mat(truth = diag, estimate = .pred_class)
+
+autoplot(cm_knn, type = "heatmap")
 ```
