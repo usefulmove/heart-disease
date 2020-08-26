@@ -12,9 +12,10 @@ knitr::opts_chunk$set(
 )
 library(tidyverse)
 library(tidymodels)
+library(magrittr)
 ```
 
-```{r data}
+```{r data_clean, include = FALSE}
 patients <- readr::read_csv(
   "https://archive.ics.uci.edu/ml/machine-learning-databases/heart-disease/processed.cleveland.data",
   col_names = c(
@@ -50,22 +51,81 @@ patients <- readr::read_csv(
 patients <- patients %>%
   drop_na()
 
+patients <- patients %>% 
+  mutate(
+    diag = as.factor(ifelse(diag == 0, "NOT_DISEASED", "DISEASED"))
+  )
+
 knitr::kable(patients)  # TODO remove
 ```
 
-### Correlation Matrix
+### Correlation matrix
 
 ```{r correlation}
-knitr::kable(round(cor(patients), digits = 3))
+knitr::kable(round(cor(patients %>% select(-diag)), digits = 3))
 ```
 
 ### Pre-processing
 
-```{r}
-patients %>% 
-  count(diag)
+```{r pre_process, include = FALSE}
+# perform training-test data split
+data_split <- patients %>% 
+  initial_split(
+    prop = 0.8
+  )
+train_data <- training(data_split)
+test_data <- testing(data_split)
 
-mean(patients$diag != 0)
+# prepare recipe steps
+recipe <- train_data %>% 
+  recipe(diag ~ .) %>% 
+  step_normalize(
+    all_numeric()
+  ) %>% 
+  prep()
 
+# extract pre-processed training data (juice)
+processed_train_data <- juice(recipe)
+
+# execute pre-processing steps on test data (bake)
+processed_test_data <- recipe %>% 
+  bake(test_data)
 ```
 
+### Supervised learning
+
+```{r train, include = FALSE}
+model <- boost_tree(
+           trees = 200,
+           mode = "classification",
+           learn_rate = 0.3,
+           tree_depth = 6
+         ) %>%
+  set_engine("xgboost") %>%
+  fit(diag ~ ., data = processed_train_data)
+```
+
+```{r predict, include = FALSE}
+prediction_matrix <- model %>%
+  predict(processed_test_data) %>%
+  bind_cols(processed_test_data)
+```
+
+```{r accuracy, include = FALSE}
+model_accuracy <- prediction_matrix %>%
+  metrics(truth = diag, estimate = .pred_class) %$%
+  .estimate[1]
+
+model_accuracy
+```
+
+The model accuracy is `r format(model_accuracy, digits = 5)`.
+
+```{r confusion, out.width = "70%"}
+cm <- model %>%
+  predict(processed_test_data) %>%
+  bind_cols(processed_test_data) %>%
+  conf_mat(truth = diag, estimate = .pred_class)
+
+autoplot(cm, type = "heatmap")
+```
