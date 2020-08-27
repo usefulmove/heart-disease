@@ -56,7 +56,7 @@ patients <- patients %>%
     diag = as.factor(ifelse(diag == 0, "NOT_DISEASED", "DISEASED"))
   )
 
-knitr::kable(patients)  # TODO remove
+knitr::kable(patients)
 ```
 
 ### Correlation matrix
@@ -68,6 +68,8 @@ knitr::kable(round(cor(patients %>% select(-diag)), digits = 3))
 ### Pre-processing
 
 ```{r pre_process, include = FALSE}
+set.seed(618)
+
 # perform training-test data split
 data_split <- patients %>% 
   initial_split(
