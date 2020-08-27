@@ -8,7 +8,10 @@ output: html_document
 knitr::opts_chunk$set(
   echo = FALSE,
   warning = FALSE,
-  message = FALSE
+  message = FALSE,
+  out.width = "85%",
+  fig.asp = 0.8,
+  fig.align = "center"
 )
 library(tidyverse)
 library(tidymodels)
@@ -166,4 +169,37 @@ cm_knn <- model_knn %>%
   conf_mat(truth = diag, estimate = .pred_class)
 
 autoplot(cm_knn, type = "heatmap")
+```
+
+#### Random Forest
+
+```{r train_random_forest, include = FALSE}
+model_forest <- rand_forest(
+                  trees = 200,
+                  mtry = 3,
+                  mode = "classification"
+                ) %>%
+  set_engine("randomForest") %>%
+  fit(diag ~ ., data = processed_train_data)
+```
+
+```{r predict_random_forest, include = FALSE}
+rf_accuracy <- model_forest %>%
+  predict(processed_test_data) %>%
+  bind_cols(processed_test_data) %>%
+  metrics(truth = diag, estimate = .pred_class) %$%
+  .estimate[1]
+
+rf_accuracy
+```
+
+The model accuracy is `r format(rf_accuracy, digits = 5)`.
+
+```{r forest_confusion_matrix, out.width = "70%"}
+cm <- model_forest %>%
+  predict(processed_test_data) %>%
+  bind_cols(processed_test_data) %>%
+  conf_mat(truth = diag, estimate = .pred_class)
+
+autoplot(cm, type = "heatmap")
 ```
